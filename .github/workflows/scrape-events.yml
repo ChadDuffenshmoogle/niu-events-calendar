@@ -1,1 +1,28 @@
+name: Scrape NIU Events
 
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Scrape events
+        run: node scrape-events.js
+      
+      - name: Commit results
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add niu-events.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update NIU events"
+          git push
