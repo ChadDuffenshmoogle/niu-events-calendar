@@ -30,66 +30,30 @@ function extractEvents(html) {
   return events;
 }
 
-function extractTags(html) {
-  const tagsByUrl = {};
-  
-  // Match event cards with their URL and tags
-  const cardRegex = /<div class="em-card[\s\S]*?href="(https:\/\/calendar\.niu\.edu\/event\/[^"]+)"[\s\S]*?<div class="em-list_tags">([\s\S]*?)<\/div>/g;
-  let match;
-  
-  while ((match = cardRegex.exec(html)) !== null) {
-    const url = match[1];
-    const tagsHtml = match[2];
-    const tags = [];
-    
-    // Extract non-"New" tags
-    const tagRegex = /<span class="em-card_tag(?! em-new-tag)"[^>]*>(.*?)<\/span>/g;
-    let tagMatch;
-    
-    while ((tagMatch = tagRegex.exec(tagsHtml)) !== null) {
-      tags.push(tagMatch[1].trim());
-    }
-    
-    if (tags.length > 0) {
-      tagsByUrl[url] = tags;
-    }
-  }
-  
-  return tagsByUrl;
-}
-
 async function scrapeAllEvents() {
   console.log('Starting event scraper...');
   const allEvents = [];
-  const allTags = {};
   
-  // Fetch first page
+  // Fetch first page to see how many pages exist
   const firstPage = await fetchPage(1);
   const firstEvents = extractEvents(firstPage);
-  const firstTags = extractTags(firstPage);
-  
   allEvents.push(...firstEvents);
-  Object.assign(allTags, firstTags);
-  
   console.log(`Page 1: Found ${firstEvents.length} events`);
   
-  // Find max page number
+  // Check for max page number in pagination
   const pageMatch = firstPage.match(/\/calendar\/six_months\/\d+\/\d+\/\d+\/(\d+)/g);
   const maxPage = pageMatch ? Math.max(...pageMatch.map(p => parseInt(p.split('/').pop()))) : 1;
   
   console.log(`Total pages to scrape: ${maxPage}`);
   
-  // Fetch remaining pages
+  // Fetch remaining pages with delay to avoid rate limits
   for (let page = 2; page <= maxPage; page++) {
     try {
       await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
       
       const html = await fetchPage(page);
       const events = extractEvents(html);
-      const tags = extractTags(html);
-      
       allEvents.push(...events);
-      Object.assign(allTags, tags);
       
       console.log(`Page ${page}/${maxPage}: Found ${events.length} events (Total: ${allEvents.length})`);
     } catch (error) {
@@ -97,20 +61,12 @@ async function scrapeAllEvents() {
     }
   }
   
-  // Remove duplicates and add tags
+  // Remove duplicates by URL
   const uniqueEvents = Array.from(
     new Map(allEvents.map(e => [e.url, e])).values()
   );
   
-  // Attach tags to events
-  uniqueEvents.forEach(event => {
-    if (allTags[event.url]) {
-      event.tags = allTags[event.url];
-    }
-  });
-  
   console.log(`\nTotal unique events: ${uniqueEvents.length}`);
-  console.log(`Events with tags: ${uniqueEvents.filter(e => e.tags).length}`);
   
   // Save to file
   fs.writeFileSync('niu-events.json', JSON.stringify({
