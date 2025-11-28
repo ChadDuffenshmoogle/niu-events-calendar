@@ -27,6 +27,40 @@ function extractEvents(html) {
     }
   }
   
+  // Extract tags for each event
+  const eventCards = html.matchAll(/<div class="em-card em-event-(\d+)[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g);
+  const tagsByEventId = {};
+  
+  for (const card of eventCards) {
+    const cardHtml = card[0];
+    const eventId = card[1];
+    const tags = [];
+    
+    const tagMatches = cardHtml.matchAll(/<span class="em-card_tag(?! em-new-tag)"[^>]*>(.*?)<\/span>/g);
+    for (const tagMatch of tagMatches) {
+      tags.push(tagMatch[1]);
+    }
+    
+    if (tags.length > 0) {
+      tagsByEventId[eventId] = tags;
+    }
+  }
+  
+  // Add tags to events
+  events.forEach(event => {
+    const eventIdMatch = event.url?.match(/event\/([^\/]+)/);
+    if (eventIdMatch) {
+      const urlName = eventIdMatch[1];
+      // Try to find matching tags
+      for (const [id, tags] of Object.entries(tagsByEventId)) {
+        if (event.url.includes(id)) {
+          event.tags = tags;
+          break;
+        }
+      }
+    }
+  });
+  
   return events;
 }
 
