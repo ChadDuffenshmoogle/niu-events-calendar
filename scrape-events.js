@@ -66,7 +66,14 @@ async function scrapeAllEvents() {
   const allTags = {};
   
   // Fetch first page
+  console.log('Fetching page 1...');
   const firstPage = await fetchPage(1);
+  
+  console.log(`Page length: ${firstPage.length} characters`);
+  console.log(`First 500 chars: ${firstPage.substring(0, 500)}`);
+  console.log(`Contains "application/ld+json": ${firstPage.includes('application/ld+json')}`);
+  console.log(`Contains "em-card": ${firstPage.includes('em-card')}`);
+  
   const firstEvents = extractEvents(firstPage);
   const firstTags = extractTags(firstPage);
   
@@ -81,23 +88,9 @@ async function scrapeAllEvents() {
   
   console.log(`Total pages to scrape: ${maxPage}`);
   
-  // Fetch remaining pages
-  for (let page = 2; page <= maxPage; page++) {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-      
-      const html = await fetchPage(page);
-      const events = extractEvents(html);
-      const tags = extractTags(html);
-      
-      allEvents.push(...events);
-      Object.assign(allTags, tags);
-      
-      console.log(`Page ${page}/${maxPage}: Found ${events.length} events (Total: ${allEvents.length})`);
-    } catch (error) {
-      console.log(`Error on page ${page}:`, error.message);
-    }
-  }
+  // Save what we got (even if empty) for debugging
+  fs.writeFileSync('debug-page1.html', firstPage);
+  console.log('Saved first page to debug-page1.html');
   
   // Remove duplicates
   const uniqueEvents = Array.from(
@@ -123,5 +116,4 @@ async function scrapeAllEvents() {
   
   console.log('Saved to niu-events.json');
 }
-
 scrapeAllEvents().catch(console.error);
