@@ -33,20 +33,22 @@ function extractEvents(html) {
 function extractTags(html) {
   const tagsByUrl = {};
   
-  // Match event cards with their URL and tags
-  const cardRegex = /<div class="em-card[\s\S]*?href="(https:\/\/calendar\.niu\.edu\/event\/[^"]+)"[\s\S]*?<div class="em-list_tags">([\s\S]*?)<\/div>/g;
-  let match;
+  // Find all event cards
+  const cards = html.split('<div class="em-card ');
   
-  while ((match = cardRegex.exec(html)) !== null) {
-    const url = match[1];
-    const tagsHtml = match[2];
+  for (let i = 1; i < cards.length; i++) {
+    const card = cards[i];
+    
+    // Extract URL
+    const urlMatch = card.match(/href="(https:\/\/calendar\.niu\.edu\/event\/[^"]+)"/);
+    if (!urlMatch) continue;
+    const url = urlMatch[1];
+    
+    // Extract tags
     const tags = [];
+    const tagMatches = card.matchAll(/<span class="em-card_tag(?! em-new-tag)"[^>]*>(.*?)<\/span>/g);
     
-    // Extract non-"New" tags
-    const tagRegex = /<span class="em-card_tag(?! em-new-tag)"[^>]*>(.*?)<\/span>/g;
-    let tagMatch;
-    
-    while ((tagMatch = tagRegex.exec(tagsHtml)) !== null) {
+    for (const tagMatch of tagMatches) {
       tags.push(tagMatch[1].trim());
     }
     
@@ -71,7 +73,7 @@ async function scrapeAllEvents() {
   allEvents.push(...firstEvents);
   Object.assign(allTags, firstTags);
   
-  console.log(`Page 1: Found ${firstEvents.length} events`);
+  console.log(`Page 1: Found ${firstEvents.length} events, ${Object.keys(firstTags).length} with tags`);
   
   // Find max page number
   const pageMatch = firstPage.match(/\/calendar\/six_months\/\d+\/\d+\/\d+\/(\d+)/g);
@@ -97,7 +99,7 @@ async function scrapeAllEvents() {
     }
   }
   
-  // Remove duplicates and add tags
+  // Remove duplicates
   const uniqueEvents = Array.from(
     new Map(allEvents.map(e => [e.url, e])).values()
   );
